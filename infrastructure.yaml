@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Mental Health Chatbot Infrastructure
+
+Parameters:
+  AccountId:
+    Type: String
+    Description: AWS Account ID
+  Region:
+    Type: String
+    Default: us-east-1
+
+Resources:
+  # DynamoDB Table
+  ConversationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: mental-health-conversations
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  # Lambda 1 - Emotion Classifier
+  Lambda1Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: lambda1-emotion
+      PackageType: Image
+      Code:
+        ImageUri: !Sub "${AccountId}.dkr.ecr.${Region}.amazonaws.com/lambda1-emotion:latest"
+      Role: !Sub "arn:aws:iam::${AccountId}:role/LabRole"
+      MemorySize: 3072
+      Timeout: 300
+      Environment:
+        Variables:
+          TRANSFORMERS_CACHE: /tmp
+          HF_HOME: /tmp
+
+  # Lambda 2 - Response Generator
+  Lambda2Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: lambda2-response
+      PackageType: Image
+      Code:
+        ImageUri: !Sub "${AccountId}.dkr.ecr.${Region}.amazonaws.com/lambda2-response:latest"
+      Role: !Sub "arn:aws:iam::${AccountId}:role/LabRole"
+      MemorySize: 3072
+      Timeout: 600
+      Environment:
+        Variables:
+          TRANSFORMERS_CACHE: /tmp
+          HF_HOME: /tmp
+
+  # API Gateway
+  ChatbotAPI:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: mental-health-chatbot
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - content-type
+
+  # S3 Bucket for Frontend
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: mental-health-chatbot-frontend
+      WebsiteConfiguration:
+        IndexDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  # S3 Bucket Policy
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "arn:aws:s3:::mental-health-chatbot-frontend/*"

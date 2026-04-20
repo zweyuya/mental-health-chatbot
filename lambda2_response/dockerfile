@@ -1,0 +1,12 @@
+﻿FROM public.ecr.aws/lambda/python:3.11
+
+RUN pip install --upgrade pip
+RUN pip install numpy==1.26.4
+RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip install transformers==4.40.0 accelerate==0.29.3
+RUN pip install sentencepiece==0.1.99 --only-binary=:all:
+
+COPY t5_empathetic_4class/ /var/task/t5_empathetic_4class/
+COPY handler.py /var/task/
+
+CMD ["handler.lambda_handler"]

@@ -70,7 +70,7 @@ jobs:
             --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -t ${{ env.ECR_REGISTRY }}/lambda1-emotion:latest \
             -t ${{ env.ECR_REGISTRY }}/lambda1-emotion:${{ github.run_number }} \
-            ./lambda1-emotion/
+            ./lambda1_emotion/
 
       - name: Push Lambda 1 image to ECR
         run: |
@@ -100,7 +100,7 @@ jobs:
             --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -t ${{ env.ECR_REGISTRY }}/lambda2-response:latest \
             -t ${{ env.ECR_REGISTRY }}/lambda2-response:${{ github.run_number }} \
-            ./lambda2-response/
+            ./lambda2_response/
 
       - name: Push Lambda 2 image to ECR
         run: |

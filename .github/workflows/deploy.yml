@@ -1,7 +1,7 @@
 name: Retrain & Redeploy Lambdas
 
 on:
-  workflow_dispatch:          # triggered by Lambda 3 via GitHub API
+  workflow_dispatch:
     inputs:
       record_count:
         description: "Number of conversation records exported"
@@ -17,21 +17,17 @@ on:
         default: "manual"
 
 env:
-  AWS_REGION:     us-east-1
-  ECR_REGISTRY:   ${{ secrets.ECR_REGISTRY }}
-  S3_BUCKET:      ${{ secrets.S3_BUCKET }}
+  AWS_REGION: us-east-1
+  S3_BUCKET:  ${{ secrets.S3_BUCKET }}
 
 jobs:
   deploy:
-    name: Rebuild & Redeploy
+    name: Simulate Retraining & Redeploy
     runs-on: ubuntu-latest
 
     steps:
 
       # ── Setup ────────────────────────────────────────────────────────────────
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -43,75 +39,58 @@ jobs:
 
       - name: Verify AWS connection
         run: |
-          echo "Triggered by: ${{ github.event.inputs.triggered_by }}"
+          echo "Triggered by:      ${{ github.event.inputs.triggered_by }}"
           echo "Records in export: ${{ github.event.inputs.record_count }}"
           aws sts get-caller-identity
 
-      # ── Download new training data ────────────────────────────────────────────
+      # ── Download new conversation data from S3 ────────────────────────────────
 
       - name: Download new_data.json from S3
         run: |
           aws s3 cp s3://${{ env.S3_BUCKET }}/${{ github.event.inputs.s3_key }} ./new_data.json
-          echo "Downloaded new_data.json:"
-          cat new_data.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'  Records: {d[\"record_count\"]}'); print(f'  Exported at: {d[\"exported_at\"]}')"
+          echo "new_data.json contents:"
+          python3 -c "
+          import json
+          with open('new_data.json') as f:
+              d = json.load(f)
+          print(f'  Records:     {d[\"record_count\"]}')
+          print(f'  Exported at: {d[\"exported_at\"]}')
+          "
 
-      # ── Login to ECR ──────────────────────────────────────────────────────────
+      # ── Simulate retraining ───────────────────────────────────────────────────
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      # ── Lambda 1: Emotion Classifier ──────────────────────────────────────────
-
-      - name: Build Lambda 1 image (emotion classifier)
+      - name: Simulate retraining on new conversation data
         run: |
-          docker build \
-            --build-arg DATA_FILE=new_data.json \
-            --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            -t ${{ env.ECR_REGISTRY }}/lambda1-emotion:latest \
-            -t ${{ env.ECR_REGISTRY }}/lambda1-emotion:${{ github.run_number }} \
-            ./lambda1_emotion/
+          echo "============================================"
+          echo "  Simulating model retraining"
+          echo "  New conversations: ${{ github.event.inputs.record_count }}"
+          echo "  Data file: new_data.json"
+          echo "  In production: SageMaker training job"
+          echo "  would fine-tune DistilBERT + T5 here"
+          echo "============================================"
 
-      - name: Push Lambda 1 image to ECR
-        run: |
-          docker push ${{ env.ECR_REGISTRY }}/lambda1-emotion:latest
-          docker push ${{ env.ECR_REGISTRY }}/lambda1-emotion:${{ github.run_number }}
+      # ── Redeploy Lambda 1 (emotion classifier) ───────────────────────────────
 
-      - name: Redeploy Lambda 1
+      - name: Redeploy Lambda 1 (emotion classifier)
         run: |
           aws lambda update-function-code \
             --function-name lambda1-emotion \
-            --image-uri ${{ env.ECR_REGISTRY }}/lambda1-emotion:latest \
+            --image-uri ${{ secrets.ECR_REGISTRY }}/lambda1-emotion:latest \
             --region us-east-1
 
-          # Wait for update to complete
           aws lambda wait function-updated \
             --function-name lambda1-emotion \
             --region us-east-1
 
           echo "Lambda 1 redeployed successfully"
 
-      # ── Lambda 2: Response Generator ─────────────────────────────────────────
+      # ── Redeploy Lambda 2 (response generator) ───────────────────────────────
 
-      - name: Build Lambda 2 image (response generator)
-        run: |
-          docker build \
-            --build-arg DATA_FILE=new_data.json \
-            --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            -t ${{ env.ECR_REGISTRY }}/lambda2-response:latest \
-            -t ${{ env.ECR_REGISTRY }}/lambda2-response:${{ github.run_number }} \
-            ./lambda2_response/
-
-      - name: Push Lambda 2 image to ECR
-        run: |
-          docker push ${{ env.ECR_REGISTRY }}/lambda2-response:latest
-          docker push ${{ env.ECR_REGISTRY }}/lambda2-response:${{ github.run_number }}
-
-      - name: Redeploy Lambda 2
+      - name: Redeploy Lambda 2 (response generator)
         run: |
           aws lambda update-function-code \
             --function-name lambda2-response \
-            --image-uri ${{ env.ECR_REGISTRY }}/lambda2-response:latest \
+            --image-uri ${{ secrets.ECR_REGISTRY }}/lambda2-response:latest \
             --region us-east-1
 
           aws lambda wait function-updated \
@@ -127,14 +106,14 @@ jobs:
           aws lambda get-function \
             --function-name lambda1-emotion \
             --region us-east-1 \
-            --query 'Configuration.{State:State,LastModified:LastModified,ImageUri:Code.ImageUri}'
+            --query "Configuration.{State:State,LastModified:LastModified}"
 
       - name: Verify Lambda 2 state
         run: |
           aws lambda get-function \
             --function-name lambda2-response \
             --region us-east-1 \
-            --query 'Configuration.{State:State,LastModified:LastModified,ImageUri:Code.ImageUri}'
+            --query "Configuration.{State:State,LastModified:LastModified}"
 
       # ── Summary ───────────────────────────────────────────────────────────────
 
@@ -143,10 +122,9 @@ jobs:
           echo "============================================"
           echo "  Pipeline complete"
           echo "============================================"
-          echo "  Trigger:        ${{ github.event.inputs.triggered_by }}"
-          echo "  Records used:   ${{ github.event.inputs.record_count }}"
-          echo "  Run number:     ${{ github.run_number }}"
-          echo "  Lambda 1:       lambda1-emotion  → redeployed"
-          echo "  Lambda 2:       lambda2-response → redeployed"
-          echo "  Image tags:     latest + ${{ github.run_number }}"
+          echo "  Trigger:       ${{ github.event.inputs.triggered_by }}"
+          echo "  Records used:  ${{ github.event.inputs.record_count }}"
+          echo "  Run number:    ${{ github.run_number }}"
+          echo "  Lambda 1:      lambda1-emotion  → redeployed"
+          echo "  Lambda 2:      lambda2-response → redeployed"
           echo "============================================"

@@ -1,0 +1,16 @@
+Response ID,Rater,Empathy,Relevance,Safety,Fluency,Usefulness,Average,Notes
+R01,Rater A,5,5,5,5,5,5,nothing
+R01,Rater B,4,5,5,5,5,4.8,good
+R01,Rater C,5,5,5,5,5,5,Great!
+R02,Rater A,4,4,4,4,2,3.6,
+R02,Rater B,4,3,4,4,3,3.6,
+R02,Rater C,4,3,4,4,3,3.6,
+R03,Rater A,4,4,4,3,3,3.6,
+R03,Rater B,4,3,4,4,3,3.6,
+R03,Rater C,4,3,4,4,2,3.4,
+R04,Rater A,4,3,4,3,2,3.2,
+R04,Rater B,4,3,4,3,3,3.4,
+R04,Rater C,4,3,4,3,3,3.4,
+R05,Rater A,4,4,4,4,4,4,Nothing
+R05,Rater B,4,5,4,4,3,4,None
+R05,Rater C,4,4,4,3,3,3.6,Nothing

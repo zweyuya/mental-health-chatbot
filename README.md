@@ -1,4 +1,4 @@
-# Mental Health Chatbot — Automated ML Pipeline
+# Mental Health Chatbot - Automated MLOps + NLP Pipeline
 
 An end-to-end serverless mental health support chatbot built on AWS with a fully automated MLOps pipeline. The system detects user emotions using DistilBERT, generates empathetic responses using T5, and automatically redeploys when new conversation data is collected.
 

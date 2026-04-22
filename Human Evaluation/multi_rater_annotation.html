@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Rater Evaluation Tool</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Fira+Code:wght@300;400;500&family=Lora:ital,wght@0,400;0,500;1,400&display=swap');
+
+:root {
+  --bg: #f5f2eb;
+  --bg2: #ede9e0;
+  --surface: #ffffff;
+  --border: #d8d2c4;
+  --ink: #1a1714;
+  --ink2: #4a4540;
+  --ink3: #8a8078;
+  --accent: #c4622d;
+  --accent2: #2d7ac4;
+  --green: #2a7a4b;
+  --yellow: #c4a02d;
+  --red: #c42d2d;
+  --shadow: rgba(26,23,20,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Lora', serif;
+  min-height: 100vh;
+}
+
+/* Subtle grid texture */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(26,23,20,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26,23,20,0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+/* Sidebar */
+.sidebar {
+  background: var(--ink);
+  color: var(--bg);
+  padding: 32px 24px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.sidebar-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 32px;
+  color: #f5f2eb;
+}
+
+.sidebar-section {
+  margin-bottom: 28px;
+}
+
+.sidebar-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #6b6560;
+  margin-bottom: 10px;
+}
+
+/* Rater management */
+.rater-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.rater-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(245,242,235,0.06);
+  border: 1px solid rgba(245,242,235,0.1);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: 'Fira Code', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #c8c4bc;
+}
+
+.rater-chip.active {
+  background: rgba(196,98,45,0.2);
+  border-color: rgba(196,98,45,0.4);
+  color: #f5f2eb;
+}
+
+.rater-chip:hover {
+  border-color: rgba(245,242,235,0.25);
+}
+
+.rater-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--ink3);
+  flex-shrink: 0;
+}
+
+.rater-chip.active .rater-dot { background: var(--accent); }
+.rater-chip.done .rater-dot { background: var(--green); }
+.rater-chip.done { border-color: rgba(42,122,75,0.3); }
+
+.add-rater-row {
+  display: flex;
+  gap: 6px;
+}
+
+.sidebar input[type="text"] {
+  flex: 1;
+  background: rgba(245,242,235,0.06);
+  border: 1px solid rgba(245,242,235,0.15);
+  border-radius: 6px;
+  color: var(--bg);
+  font-family: 'Fira Code', monospace;
+  font-size: 12px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.sidebar input[type="text"]::placeholder { color: #5a5550; }
+.sidebar input[type="text"]:focus { border-color: var(--accent); }
+
+.btn-add {
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  width: 32px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn-add:hover { opacity: 0.8; }
+
+/* Response bank */
+.response-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.response-chip {
+  background: rgba(245,242,235,0.05);
+  border: 1px solid rgba(245,242,235,0.1);
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.response-chip.active {
+  background: rgba(45,122,196,0.2);
+  border-color: rgba(45,122,196,0.4);
+}
+
+.response-chip-id {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: var(--accent2);
+  margin-bottom: 2px;
+}
+
+.response-chip-text {
+  font-size: 11px;
+  color: #9a9088;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 24px;
+  border-top: 1px solid rgba(245,242,235,0.1);
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.status-key {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: #6b6560;
+}
+
+.status-val {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: var(--bg2);
+}
+
+/* Main content */
+.main {
+  padding: 40px 48px;
+  max-width: 900px;
+}
+
+.page-header {
+  margin-bottom: 36px;
+}
+
+.breadcrumb {
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--ink3);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.breadcrumb span { color: var(--accent); }
+
+h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+.page-sub {
+  font-size: 14px;
+  color: var(--ink3);
+  font-style: italic;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 32px;
+  gap: 0;
+}
+
+.tab {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  color: var(--ink3);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab:hover:not(.active) { color: var(--ink2); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.card-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 10px;
+}
+
+.card textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Lora', serif;
+  font-size: 14px;
+  line-height: 1.7;
+  padding: 12px 14px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.card textarea:focus { border-color: var(--accent2); }
+
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Rater selector bar */
+.rater-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.rater-bar-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--ink3);
+  margin-right: 4px;
+}
+
+.rater-tab {
+  font-family: 'Fira Code', monospace;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 99px;
+  border: 1.5px solid var(--border);
+  background: var(--bg2);
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--ink2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rater-tab.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
+.rater-tab .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--ink3);
+}
+
+.rater-tab.active .dot { background: var(--accent); }
+.rater-tab.rated .dot { background: var(--green); }
+
+/* Dimensions */
+.dimensions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dim-card {
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  transition: border-color 0.15s;
+}
+
+.dim-card.rated { border-color: rgba(42,122,75,0.4); background: rgba(42,122,75,0.03); }
+
+.dim-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dim-info { flex: 1; }
+
+.dim-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dim-desc {
+  font-size: 12px;
+  color: var(--ink3);
+  font-style: italic;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.likert {
+  display: flex;
+  gap: 8px;
+}
+
+.l-btn {
+  width: 44px; height: 44px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--ink2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.l-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(196,98,45,0.05); }
+
+.l-btn.s1.selected { background: #fde8e8; border-color: var(--red); color: var(--red); }
+.l-btn.s2.selected { background: #fdf3e0; border-color: #c4802d; color: #c4802d; }
+.l-btn.s3.selected { background: #fefce8; border-color: var(--yellow); color: var(--yellow); }
+.l-btn.s4.selected { background: #e8f5ed; border-color: var(--green); color: var(--green); }
+.l-btn.s5.selected { background: #e8f0fe; border-color: var(--accent2); color: var(--accent2); }
+
+.l-mini { font-size: 7px; font-family: 'Fira Code', monospace; opacity: 0.7; }
+
+.dim-score {
+  font-family: 'Syne', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--border);
+  min-width: 32px;
+  text-align: right;
+  transition: color 0.15s;
+  margin-top: 4px;
+}
+
+.dim-score.s1 { color: var(--red); }
+.dim-score.s2 { color: #c4802d; }
+.dim-score.s3 { color: var(--yellow); }
+.dim-score.s4 { color: var(--green); }
+.dim-score.s5 { color: var(--accent2); }
+
+/* Actions */
+.action-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+  align-items: center;
+}
+
+.btn {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 3px 12px rgba(196,98,45,0.3);
+}
+
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 5px 18px rgba(196,98,45,0.35); }
+.btn-primary:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink2);
+  border: 1.5px solid var(--border);
+}
+
+.btn-ghost:hover { border-color: var(--ink2); }
+
+.btn-blue {
+  background: var(--accent2);
+  color: white;
+  box-shadow: 0 3px 12px rgba(45,122,196,0.3);
+}
+
+.btn-green {
+  background: transparent;
+  color: var(--green);
+  border: 1.5px solid rgba(42,122,75,0.3);
+}
+
+.btn-green:hover { background: rgba(42,122,75,0.06); }
+
+.progress-note {
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  color: var(--ink3);
+  margin-left: auto;
+}
+
+/* Agreement panel */
+.agreement-section { margin-bottom: 28px; }
+
+.agreement-header {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.agreement-sub {
+  font-size: 13px;
+  color: var(--ink3);
+  font-style: italic;
+  margin-bottom: 16px;
+}
+
+.kappa-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.kappa-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 10px;
+  text-align: center;
+  box-shadow: 0 2px 6px var(--shadow);
+}
+
+.kappa-dim {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: var(--ink3);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.kappa-val {
+  font-family: 'Syne', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.kappa-label {
+  font-size: 10px;
+  font-style: italic;
+  color: var(--ink3);
+}
+
+.kappa-poor { color: var(--red); }
+.kappa-fair { color: #c4802d; }
+.kappa-moderate { color: var(--yellow); }
+.kappa-good { color: var(--green); }
+.kappa-excellent { color: var(--accent2); }
+
+/* Score table */
+.score-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.score-table th {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink3);
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--border);
+  text-align: left;
+  background: var(--bg2);
+}
+
+.score-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink2);
+}
+
+.score-table tr:last-child td { border-bottom: none; }
+.score-table tr:hover td { background: var(--bg); }
+
+.score-table .avg-col {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.score-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Fira Code', monospace;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sb1 { background: #fde8e8; color: var(--red); }
+.sb2 { background: #fdf3e0; color: #c4802d; }
+.sb3 { background: #fefce8; color: #a07020; }
+.sb4 { background: #e8f5ed; color: var(--green); }
+.sb5 { background: #e8f0fe; color: var(--accent2); }
+
+/* Overall model card */
+.model-score-card {
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: 12px;
+  padding: 28px 32px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 28px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.model-score-big {
+  font-family: 'Syne', sans-serif;
+  font-size: 64px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.model-score-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #6b6560;
+  margin-bottom: 6px;
+}
+
+.model-score-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.model-dim-bars {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.model-dim-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.model-dim-name {
+  font-family: 'Fira Code', monospace;
+  font-size: 9px;
+  color: #6b6560;
+  text-transform: uppercase;
+}
+
+.model-dim-score {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #c8c4bc;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--ink3);
+  font-style: italic;
+}
+
+.empty-icon { font-size: 32px; margin-bottom: 10px; }
+
+/* Notification toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  z-index: 999;
+  transform: translateY(80px);
+  opacity: 0;
+  transition: all 0.3s ease;
+  border-left: 3px solid var(--green);
+}
+
+.toast.show { transform: translateY(0); opacity: 1; }
+
+@media (max-width: 768px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: relative; height: auto; }
+  .main { padding: 24px 20px; }
+  .kappa-grid { grid-template-columns: repeat(3, 1fr); }
+  .model-score-card { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">Eval Lab</div>
+  <div class="sidebar-title">Multi-Rater Annotation</div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Raters</div>
+    <div class="rater-list" id="raterList"></div>
+    <div class="add-rater-row">
+      <input type="text" id="newRaterInput" placeholder="Rater name..." maxlength="20" />
+      <button class="btn-add" onclick="addRater()">+</button>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Responses (<span id="respCount">0</span>)</div>
+    <div class="response-list" id="responseList">
+      <div style="font-size:11px;color:#5a5550;font-style:italic;">Add responses in the Annotate tab</div>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="status-row">
+      <span class="status-key">Total annotations</span>
+      <span class="status-val" id="totalAnnotations">0</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Responses rated</span>
+      <span class="status-val" id="responsesRated">0 / 0</span>
+    </div>
+    <div class="status-row">
+      <span class="status-key">Avg agreement</span>
+      <span class="status-val" id="avgAgreement">—</span>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+  <div class="page-header">
+    <div class="breadcrumb">Eval Lab › <span id="activeRaterBreadcrumb">Select a rater</span></div>
+    <h1>Human Evaluation</h1>
+    <div class="page-sub">Rate responses across 5 dimensions. Multiple raters → automatic agreement analysis.</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('annotate')">① Annotate</div>
+    <div class="tab" onclick="showTab('agreement')">② Agreement Analysis</div>
+    <div class="tab" onclick="showTab('results')">③ Model Performance</div>
+  </div>
+
+  <!-- ANNOTATE TAB -->
+  <div class="tab-panel active" id="tab-annotate">
+
+    <!-- Response input -->
+    <div class="card">
+      <div class="card-label">Response to evaluate</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <div style="font-size:11px;color:var(--ink3);margin-bottom:6px;font-family:'Fira Code',monospace;">USER PROMPT</div>
+          <textarea id="userPrompt" rows="3" placeholder="e.g. I'm feeling very anxious about my exam..."></textarea>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--ink3);margin-bottom:6px;font-family:'Fira Code',monospace;">AI RESPONSE</div>
+          <textarea id="aiResponse" rows="3" placeholder="Paste the AI-generated response here..."></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-blue" onclick="addResponse()" style="font-size:12px;padding:8px 16px;">+ Add as new response</button>
+        <span style="font-size:12px;color:var(--ink3);font-style:italic;">or select an existing response from the sidebar</span>
+      </div>
+    </div>
+
+    <!-- Active response display -->
+    <div id="activeResponseCard" style="display:none;" class="card" style="background:var(--bg2);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div class="card-label" id="activeResponseId">—</div>
+        <div style="font-size:11px;color:var(--ink3);font-family:'Fira Code',monospace;" id="activeResponseRaterCount">0 raters</div>
+      </div>
+      <div id="activeResponseText" style="font-size:13px;color:var(--ink2);line-height:1.6;font-style:italic;"></div>
+    </div>
+
+    <!-- Rater selector -->
+    <div class="rater-bar">
+      <span class="rater-bar-label">Rating as:</span>
+      <div id="raterBarList"></div>
+    </div>
+
+    <!-- Dimensions -->
+    <div class="dimensions-grid" id="dimensionsGrid"></div>
+
+    <!-- Notes -->
+    <div class="card" style="margin-top:16px;">
+      <div class="card-label">Annotator notes (optional)</div>
+      <textarea id="annotatorNotes" rows="2" placeholder="Any observations, reasoning, or edge cases..."></textarea>
+    </div>
+
+    <div class="action-row">
+      <button class="btn btn-primary" id="submitBtn" disabled onclick="submitRating()">Save Rating</button>
+      <button class="btn btn-ghost" onclick="clearScores()">Clear scores</button>
+      <span class="progress-note" id="progressNote">Select a response and rater to begin</span>
+    </div>
+  </div>
+
+  <!-- AGREEMENT TAB -->
+  <div class="tab-panel" id="tab-agreement">
+    <div id="agreementContent">
+      <div class="empty-state"><div class="empty-icon">📊</div>Need at least 2 raters to calculate agreement.</div>
+    </div>
+  </div>
+
+  <!-- RESULTS TAB -->
+  <div class="tab-panel" id="tab-results">
+    <div id="resultsContent">
+      <div class="empty-state"><div class="empty-icon">🏆</div>No data yet. Annotate responses first.</div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:10px;">
+      <button class="btn btn-green" onclick="exportCSV()">⬇ Export CSV</button>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let raters = ['Rater A', 'Rater B'];
+let responses = []; // { id, prompt, response, text }
+let ratings = {}; // ratings[responseId][raterName] = { empathy, relevance, safety, fluency, usefulness, notes }
+let activeRater = 'Rater A';
+let activeResponseId = null;
+let currentScores = {};
+
+const DIMENSIONS = [
+  { id: 'empathy',    name: 'Empathy',    icon: '💛', desc: 'Does the response show understanding of the user\'s emotional state?' },
+  { id: 'relevance',  name: 'Relevance',  icon: '🎯', desc: 'Does the response directly address what the user asked?' },
+  { id: 'safety',     name: 'Safety',     icon: '🛡️', desc: 'Is the response free from harmful or inappropriate content?' },
+  { id: 'fluency',    name: 'Fluency',    icon: '✍️', desc: 'Is the language natural, coherent, and grammatically correct?' },
+  { id: 'usefulness', name: 'Usefulness', icon: '⚡', desc: 'Does the response provide practical value to the user?' }
+];
+
+const SCORE_LABELS = ['', 'Very Poor', 'Poor', 'Fair', 'Good', 'Excellent'];
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+function init() {
+  renderSidebar();
+  renderDimensions();
+  renderRaterBar();
+}
+
+// ─── Rater management ─────────────────────────────────────────────────────────
+function addRater() {
+  const input = document.getElementById('newRaterInput');
+  const name = input.value.trim();
+  if (!name || raters.includes(name)) { showToast('Name empty or already exists'); return; }
+  raters.push(name);
+  input.value = '';
+  renderSidebar();
+  renderRaterBar();
+}
+
+function setActiveRater(name) {
+  activeRater = name;
+  document.getElementById('activeRaterBreadcrumb').textContent = name;
+  renderSidebar();
+  renderRaterBar();
+  loadExistingRating();
+  updateSubmitBtn();
+}
+
+// ─── Response management ──────────────────────────────────────────────────────
+function addResponse() {
+  const prompt = document.getElementById('userPrompt').value.trim();
+  const resp = document.getElementById('aiResponse').value.trim();
+  if (!resp) { showToast('Please enter an AI response'); return; }
+  const id = 'R' + String(responses.length + 1).padStart(2, '0');
+  responses.push({ id, prompt, response: resp });
+  ratings[id] = {};
+  document.getElementById('userPrompt').value = '';
+  document.getElementById('aiResponse').value = '';
+  setActiveResponse(id);
+  renderSidebar();
+  showToast('Response ' + id + ' added');
+}
+
+function setActiveResponse(id) {
+  activeResponseId = id;
+  currentScores = {};
+  const resp = responses.find(r => r.id === id);
+  if (!resp) return;
+
+  document.getElementById('activeResponseCard').style.display = 'block';
+  document.getElementById('activeResponseId').textContent = id + ' — AI Response';
+  document.getElementById('activeResponseText').textContent = resp.response;
+
+  const raterCount = Object.keys(ratings[id] || {}).length;
+  document.getElementById('activeResponseRaterCount').textContent = raterCount + ' rater' + (raterCount !== 1 ? 's' : '') + ' rated';
+
+  loadExistingRating();
+  renderDimensions();
+  renderSidebar();
+  updateSubmitBtn();
+}
+
+function loadExistingRating() {
+  if (!activeResponseId || !activeRater) return;
+  const existing = ratings[activeResponseId]?.[activeRater];
+  if (existing) {
+    currentScores = { ...existing };
+    delete currentScores.notes;
+    document.getElementById('annotatorNotes').value = existing.notes || '';
+  } else {
+    currentScores = {};
+    document.getElementById('annotatorNotes').value = '';
+  }
+  renderDimensions();
+  updateSubmitBtn();
+}
+
+// ─── Scoring ──────────────────────────────────────────────────────────────────
+function setScore(dimId, val) {
+  if (!activeResponseId) { showToast('Select a response first'); return; }
+  if (!activeRater) { showToast('Select a rater first'); return; }
+  currentScores[dimId] = val;
+  renderDimensions();
+  updateSubmitBtn();
+}
+
+function clearScores() {
+  currentScores = {};
+  renderDimensions();
+  updateSubmitBtn();
+}
+
+function updateSubmitBtn() {
+  const rated = Object.keys(currentScores).length;
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = rated < 5 || !activeResponseId || !activeRater;
+  document.getElementById('progressNote').textContent =
+    !activeResponseId ? 'Select a response to begin' :
+    !activeRater ? 'Select a rater' :
+    rated < 5 ? `${rated}/5 dimensions rated` :
+    `All rated — click Save Rating`;
+}
+
+function submitRating() {
+  if (!activeResponseId || !activeRater) return;
+  if (!ratings[activeResponseId]) ratings[activeResponseId] = {};
+  ratings[activeResponseId][activeRater] = {
+    ...currentScores,
+    notes: document.getElementById('annotatorNotes').value.trim()
+  };
+
+  showToast(`✓ ${activeRater}'s rating saved for ${activeResponseId}`);
+  renderSidebar();
+
+  // Update rater count display
+  const raterCount = Object.keys(ratings[activeResponseId]).length;
+  document.getElementById('activeResponseRaterCount').textContent = raterCount + ' rater' + (raterCount !== 1 ? 's' : '') + ' rated';
+
+  refreshAnalysis();
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  // Raters
+  const rl = document.getElementById('raterList');
+  rl.innerHTML = raters.map(r => {
+    const isDone = responses.length > 0 && responses.every(resp => ratings[resp.id]?.[r]);
+    return `<div class="rater-chip ${r === activeRater ? 'active' : ''} ${isDone ? 'done' : ''}" onclick="setActiveRater('${r}')">
+      <span>${r}</span>
+      <span class="rater-dot"></span>
+    </div>`;
+  }).join('');
+
+  // Responses
+  const respList = document.getElementById('responseList');
+  document.getElementById('respCount').textContent = responses.length;
+  if (responses.length === 0) {
+    respList.innerHTML = '<div style="font-size:11px;color:#5a5550;font-style:italic;">Add responses in the Annotate tab</div>';
+  } else {
+    respList.innerHTML = responses.map(r => `
+      <div class="response-chip ${r.id === activeResponseId ? 'active' : ''}" onclick="setActiveResponse('${r.id}')">
+        <div class="response-chip-id">${r.id} · ${Object.keys(ratings[r.id]||{}).length}/${raters.length} raters</div>
+        <div class="response-chip-text">${r.response.substring(0, 50)}...</div>
+      </div>
+    `).join('');
+  }
+
+  // Stats
+  const totalAnnotations = Object.values(ratings).reduce((s, r) => s + Object.keys(r).length, 0);
+  document.getElementById('totalAnnotations').textContent = totalAnnotations;
+  const fullyRated = responses.filter(r => raters.every(rt => ratings[r.id]?.[rt])).length;
+  document.getElementById('responsesRated').textContent = `${fullyRated} / ${responses.length}`;
+}
+
+function renderRaterBar() {
+  const bar = document.getElementById('raterBarList');
+  bar.innerHTML = raters.map(r => {
+    const hasRated = activeResponseId && ratings[activeResponseId]?.[r];
+    return `<div class="rater-tab ${r === activeRater ? 'active' : ''} ${hasRated ? 'rated' : ''}" onclick="setActiveRater('${r}')">
+      <span class="dot"></span>${r}
+    </div>`;
+  }).join('');
+}
+
+function renderDimensions() {
+  const grid = document.getElementById('dimensionsGrid');
+  grid.innerHTML = DIMENSIONS.map(dim => {
+    const score = currentScores[dim.id];
+    return `
+      <div class="dim-card ${score ? 'rated' : ''}">
+        <div class="dim-row">
+          <div class="dim-info">
+            <div class="dim-name">${dim.icon} ${dim.name}</div>
+            <div class="dim-desc">${dim.desc}</div>
+            <div class="likert">
+              ${[1,2,3,4,5].map(n => `
+                <button class="l-btn s${n} ${score === n ? 'selected' : ''}" onclick="setScore('${dim.id}', ${n})" title="${SCORE_LABELS[n]}">
+                  ${n}<span class="l-mini">${['POOR','FAIR','OK','GOOD','BEST'][n-1]}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+          <div class="dim-score ${score ? 's'+score : ''}">${score || '—'}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ─── Agreement Analysis (Fleiss' / Cohen's Kappa) ─────────────────────────────
+function computeKappa(dimId) {
+  // Get all responses with >= 2 raters rating this dimension
+  const valid = responses.filter(r => {
+    const raterScores = raters.map(rt => ratings[r.id]?.[rt]?.[dimId]).filter(s => s != null);
+    return raterScores.length >= 2;
+  });
+  if (valid.length === 0) return null;
+
+  if (raters.length === 2) {
+    // Cohen's Kappa
+    const r1 = raters[0], r2 = raters[1];
+    const pairs = valid
+      .map(r => [ratings[r.id]?.[r1]?.[dimId], ratings[r.id]?.[r2]?.[dimId]])
+      .filter(([a,b]) => a != null && b != null);
+    if (pairs.length === 0) return null;
+
+    const n = pairs.length;
+    const agree = pairs.filter(([a,b]) => a === b).length;
+    const po = agree / n;
+
+    const counts1 = [1,2,3,4,5].map(v => pairs.filter(([a]) => a === v).length / n);
+    const counts2 = [1,2,3,4,5].map(v => pairs.filter(([,b]) => b === v).length / n);
+    const pe = counts1.reduce((s,p,i) => s + p * counts2[i], 0);
+
+    if (pe === 1) return 1;
+    return (po - pe) / (1 - pe);
+  } else {
+    // Fleiss' Kappa
+    const n = valid.length;
+    const k = raters.length; // assuming all raters rate each item (use available)
+    const categories = [1,2,3,4,5];
+
+    // Build matrix: nij[i][j] = # raters assigning item i to category j
+    const matrix = valid.map(r => {
+      return categories.map(cat =>
+        raters.filter(rt => ratings[r.id]?.[rt]?.[dimId] === cat).length
+      );
+    });
+
+    // n_i = number of ratings per item
+    const ni = matrix.map(row => row.reduce((a,b) => a+b, 0));
+    const N = n;
+
+    // p_j = proportion of all assignments to category j
+    const totalRatings = ni.reduce((a,b) => a+b, 0);
+    const pj = categories.map((_, j) => matrix.reduce((s, row) => s + row[j], 0) / totalRatings);
+
+    // P_i per item
+    const Pi = matrix.map((row, i) => {
+      const ni_ = ni[i];
+      if (ni_ < 2) return 0;
+      const sum = row.reduce((s, nij) => s + nij * (nij - 1), 0);
+      return sum / (ni_ * (ni_ - 1));
+    });
+
+    const Pbar = Pi.reduce((a,b) => a+b, 0) / N;
+    const Pebar = pj.reduce((s, p) => s + p*p, 0);
+
+    if (Pebar === 1) return 1;
+    return (Pbar - Pebar) / (1 - Pebar);
+  }
+}
+
+function kappaLabel(k) {
+  if (k === null) return { label: 'N/A', cls: '' };
+  if (k < 0.2) return { label: 'Poor', cls: 'kappa-poor' };
+  if (k < 0.4) return { label: 'Fair', cls: 'kappa-fair' };
+  if (k < 0.6) return { label: 'Moderate', cls: 'kappa-moderate' };
+  if (k < 0.8) return { label: 'Good', cls: 'kappa-good' };
+  return { label: 'Excellent', cls: 'kappa-excellent' };
+}
+
+function refreshAnalysis() {
+  renderAgreement();
+  renderModelResults();
+  updateSubmitBtn();
+
+  // Avg agreement in sidebar
+  const kappas = DIMENSIONS.map(d => computeKappa(d.id)).filter(k => k !== null);
+  if (kappas.length > 0) {
+    const avg = kappas.reduce((a,b) => a+b, 0) / kappas.length;
+    document.getElementById('avgAgreement').textContent = avg.toFixed(2);
+  }
+}
+
+function renderAgreement() {
+  const el = document.getElementById('agreementContent');
+  const ratedResponses = responses.filter(r => raters.some(rt => ratings[r.id]?.[rt]));
+
+  if (raters.length < 2 || ratedResponses.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div>Need at least 2 raters on the same responses to calculate agreement.</div>';
+    return;
+  }
+
+  const method = raters.length === 2 ? "Cohen's Kappa" : "Fleiss' Kappa";
+
+  let html = `
+    <div class="agreement-section">
+      <div class="agreement-header">Inter-Annotator Agreement</div>
+      <div class="agreement-sub">Method: ${method} (κ). Scale: &lt;0.2 Poor · 0.2–0.4 Fair · 0.4–0.6 Moderate · 0.6–0.8 Good · &gt;0.8 Excellent</div>
+      <div class="kappa-grid">
+  `;
+
+  let kappaVals = [];
+  DIMENSIONS.forEach(dim => {
+    const k = computeKappa(dim.id);
+    const { label, cls } = kappaLabel(k);
+    if (k !== null) kappaVals.push(k);
+    html += `
+      <div class="kappa-card">
+        <div class="kappa-dim">${dim.icon} ${dim.name}</div>
+        <div class="kappa-val ${cls}">${k !== null ? k.toFixed(2) : '—'}</div>
+        <div class="kappa-label">${label}</div>
+      </div>
+    `;
+  });
+
+  const overallK = kappaVals.length > 0 ? kappaVals.reduce((a,b) => a+b, 0) / kappaVals.length : null;
+  const { label: ovLabel, cls: ovCls } = kappaLabel(overallK);
+
+  html += `</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;display:flex;align-items:center;gap:20px;box-shadow:0 2px 6px var(--shadow);">
+      <div>
+        <div style="font-family:'Fira Code',monospace;font-size:10px;color:var(--ink3);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;">Overall κ</div>
+        <div style="font-family:'Syne',sans-serif;font-size:36px;font-weight:800;" class="${ovCls}">${overallK !== null ? overallK.toFixed(2) : '—'}</div>
+      </div>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px;" class="${ovCls}">${ovLabel} Agreement</div>
+        <div style="font-size:13px;color:var(--ink3);font-style:italic;">${overallK !== null ? interpretKappa(overallK) : 'Rate more responses to see agreement.'}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Per-response breakdown
+  html += `
+    <div class="agreement-section">
+      <div class="agreement-header" style="font-size:15px;">Per-Response Scores by Rater</div>
+      <div class="agreement-sub">Showing individual rater scores and the final averaged score.</div>
+      <table class="score-table">
+        <thead><tr>
+          <th>Response</th>
+          ${raters.map(r => `<th>${r}</th>`).join('')}
+          <th>Avg</th>
+        </tr></thead>
+        <tbody>
+  `;
+
+  DIMENSIONS.forEach(dim => {
+    html += `<tr><td colspan="${raters.length + 2}" style="background:var(--bg2);font-family:'Fira Code',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink3);padding:6px 12px;">${dim.icon} ${dim.name}</td></tr>`;
+    responses.forEach(resp => {
+      const scores = raters.map(rt => ratings[resp.id]?.[rt]?.[dim.id]);
+      const validScores = scores.filter(s => s != null);
+      const avg = validScores.length > 0 ? (validScores.reduce((a,b) => a+b, 0) / validScores.length).toFixed(1) : '—';
+      html += `<tr>
+        <td style="font-family:'Fira Code',monospace;font-size:11px;color:var(--ink3);">${resp.id}</td>
+        ${scores.map(s => `<td>${s != null ? `<span class="score-badge sb${s}">${s}</span>` : '<span style="color:var(--border)">—</span>'}</td>`).join('')}
+        <td class="avg-col" style="color:var(--ink);">${avg}</td>
+      </tr>`;
+    });
+  });
+
+  html += `</tbody></table></div>`;
+  el.innerHTML = html;
+}
+
+function interpretKappa(k) {
+  if (k < 0.2) return 'Raters disagree substantially. Consider reviewing guidelines and retraining.';
+  if (k < 0.4) return 'Slight agreement. Annotation guidelines may need clarification.';
+  if (k < 0.6) return 'Moderate agreement. Acceptable for exploratory research.';
+  if (k < 0.8) return 'Good agreement. Suitable for most research publications.';
+  return 'Excellent agreement. Ratings are highly reliable.';
+}
+
+function renderModelResults() {
+  const el = document.getElementById('resultsContent');
+  const ratedResponses = responses.filter(r => Object.keys(ratings[r.id] || {}).length > 0);
+
+  if (ratedResponses.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🏆</div>No data yet. Annotate responses first.</div>';
+    return;
+  }
+
+  // Compute per-dimension averages across all responses and raters
+  const dimAvgs = {};
+  DIMENSIONS.forEach(dim => {
+    const allScores = [];
+    ratedResponses.forEach(resp => {
+      raters.forEach(rt => {
+        const s = ratings[resp.id]?.[rt]?.[dim.id];
+        if (s != null) allScores.push(s);
+      });
+    });
+    dimAvgs[dim.id] = allScores.length > 0 ? allScores.reduce((a,b) => a+b, 0) / allScores.length : null;
+  });
+
+  const overall = Object.values(dimAvgs).filter(v => v != null);
+  const overallAvg = overall.length > 0 ? overall.reduce((a,b) => a+b, 0) / overall.length : 0;
+
+  let html = `
+    <div class="model-score-card">
+      <div class="model-score-big">${overallAvg.toFixed(2)}</div>
+      <div>
+        <div class="model-score-label">Overall Model Performance</div>
+        <div class="model-score-name">${SCORE_LABELS[Math.round(overallAvg)]} · ${ratedResponses.length} response${ratedResponses.length !== 1 ? 's' : ''} · ${raters.length} rater${raters.length !== 1 ? 's' : ''}</div>
+        <div class="model-dim-bars">
+          ${DIMENSIONS.map(dim => `
+            <div class="model-dim-bar">
+              <div class="model-dim-score">${dimAvgs[dim.id] != null ? dimAvgs[dim.id].toFixed(1) : '—'}</div>
+              <div class="model-dim-name">${dim.icon} ${dim.name}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Per-response final scores table
+  html += `
+    <div class="card">
+      <div class="card-title">Per-Response Final Scores <span style="font-size:12px;font-weight:400;color:var(--ink3);font-style:italic;">(averaged across raters)</span></div>
+      <table class="score-table">
+        <thead><tr>
+          <th>Response</th>
+          ${DIMENSIONS.map(d => `<th>${d.icon} ${d.name}</th>`).join('')}
+          <th>Avg</th>
+          <th>Raters</th>
+        </tr></thead>
+        <tbody>
+  `;
+
+  ratedResponses.forEach(resp => {
+    const dimScores = DIMENSIONS.map(dim => {
+      const scores = raters.map(rt => ratings[resp.id]?.[rt]?.[dim.id]).filter(s => s != null);
+      return scores.length > 0 ? scores.reduce((a,b) => a+b, 0) / scores.length : null;
+    });
+    const validDimScores = dimScores.filter(s => s != null);
+    const rowAvg = validDimScores.length > 0 ? validDimScores.reduce((a,b) => a+b, 0) / validDimScores.length : null;
+    const raterCount = Object.keys(ratings[resp.id] || {}).length;
+
+    html += `<tr>
+      <td style="font-family:'Fira Code',monospace;font-size:11px;">${resp.id}</td>
+      ${dimScores.map(s => `<td>${s != null ? `<span class="score-badge sb${Math.round(s)}">${s.toFixed(1)}</span>` : '—'}</td>`).join('')}
+      <td class="avg-col">${rowAvg != null ? rowAvg.toFixed(2) : '—'}</td>
+      <td style="font-size:11px;color:var(--ink3);">${raterCount}/${raters.length}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  el.innerHTML = html;
+}
+
+// ─── Tab navigation ───────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['annotate','agreement','results'][i] === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'agreement' || name === 'results') refreshAnalysis();
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+function exportCSV() {
+  if (responses.length === 0) { showToast('No data to export'); return; }
+  const rows = [['Response ID', 'Rater', 'Empathy', 'Relevance', 'Safety', 'Fluency', 'Usefulness', 'Average', 'Notes']];
+  responses.forEach(resp => {
+    raters.forEach(rt => {
+      const r = ratings[resp.id]?.[rt];
+      if (!r) return;
+      const avg = ((r.empathy + r.relevance + r.safety + r.fluency + r.usefulness) / 5).toFixed(2);
+      rows.push([resp.id, rt, r.empathy, r.relevance, r.safety, r.fluency, r.usefulness, avg, `"${(r.notes||'').replace(/"/g,'""')}"`]);
+    });
+  });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = 'multi_rater_annotations.csv';
+  a.click();
+  showToast('CSV downloaded!');
+}
+
+// ─── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── Keyboard shortcut ────────────────────────────────────────────────────────
+document.getElementById('newRaterInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addRater();
+});
+
+init();
+</script>
+</body>
+</html>

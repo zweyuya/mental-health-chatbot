@@ -9,7 +9,9 @@ An end-to-end serverless mental health support chatbot built on AWS with a fully
 ### 💬 Try the Chatbot
 > **[🚀 Open Chatbot](https://mental-health-chatbot-frontend.s3.us-east-1.amazonaws.com/index.html)**
 >
-
+### 👀 See Demo Video of the Pipeline
+> **[🚀 Open Video](https://drive.google.com/file/d/1tfvGDv9YzgNe8FHH0DwR4FnD_saoZZqA/view?usp=sharing)**
+>
 ### 📊 Datasets Used
 
 | Dataset | Description | Link |
